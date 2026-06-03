@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -36,6 +36,18 @@
           </button>
         </div>
       </section>
+
+      <section class="global-search" aria-label="全局搜索">
+        <input
+          id="globalSearchInput"
+          type="search"
+          placeholder="搜索 TODO、笔记、朋友圈动态..."
+        />
+        <button class="glass-button compact" id="clearSearchButton" type="button">
+          清除
+        </button>
+      </section>
+      <section class="search-results hidden" id="searchResults" aria-label="搜索结果"></section>
 
       <section class="workspace">
         <article class="chat-panel" aria-label="左侧工作区">
@@ -112,6 +124,9 @@
             <div class="composer-actions">
               <button class="glass-button ghost" id="newNoteButton" type="button">
                 新建笔记
+              </button>
+              <button class="glass-button ghost" id="noteToTodoButton" type="button">
+                转为 TODO
               </button>
               <button class="glass-button primary" id="saveNoteButton" type="button">
                 完成笔记
@@ -298,3 +313,4 @@
     <script src="app.js"></script>
   </body>
 </html>
+

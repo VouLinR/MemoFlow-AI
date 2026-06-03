@@ -1,4 +1,4 @@
-const STORAGE_KEYS = {
+﻿const STORAGE_KEYS = {
   settings: "memoflow-ai-settings",
   history: "memoflow-ai-history",
   profile: "memoflow-ai-profile",
@@ -56,6 +56,9 @@ const messages = document.querySelector("#messages");
 const chatView = document.querySelector("#chatView");
 const noteView = document.querySelector("#noteView");
 const momentFeedView = document.querySelector("#momentFeedView");
+const globalSearchInput = document.querySelector("#globalSearchInput");
+const clearSearchButton = document.querySelector("#clearSearchButton");
+const searchResults = document.querySelector("#searchResults");
 const chatForm = document.querySelector("#chatForm");
 const userInput = document.querySelector("#userInput");
 const noteInput = document.querySelector("#noteInput");
@@ -65,6 +68,7 @@ const momentImageInput = document.querySelector("#momentImageInput");
 const noteEditStatus = document.querySelector("#noteEditStatus");
 const newNoteButton = document.querySelector("#newNoteButton");
 const saveNoteButton = document.querySelector("#saveNoteButton");
+const noteToTodoButton = document.querySelector("#noteToTodoButton");
 const clearMomentButton = document.querySelector("#clearMomentButton");
 const publishMomentButton = document.querySelector("#publishMomentButton");
 const resultOutput = document.querySelector("#resultOutput");
@@ -124,6 +128,13 @@ function bindEvents() {
   window.addEventListener("resize", () => {
     const activeButton = document.querySelector(".mode-pill.active");
     if (activeButton) moveModeIndicator(activeButton);
+  });
+
+  globalSearchInput.addEventListener("input", renderGlobalSearch);
+  clearSearchButton.addEventListener("click", () => {
+    globalSearchInput.value = "";
+    renderGlobalSearch();
+    globalSearchInput.focus();
   });
 
   chatForm.addEventListener("submit", async (event) => {
@@ -198,6 +209,7 @@ function bindEvents() {
 
   newNoteButton.addEventListener("click", () => startNewNote());
   saveNoteButton.addEventListener("click", saveCurrentNote);
+  noteToTodoButton.addEventListener("click", convertCurrentNoteToTodo);
   noteTagList.addEventListener("click", (event) => {
     const button = event.target.closest(".tag-chip");
     if (!button) return;
@@ -716,6 +728,145 @@ function showRecord(record) {
   renderTodoSummary();
 }
 
+function convertCurrentNoteToTodo() {
+  const selected = noteInput.value.slice(noteInput.selectionStart, noteInput.selectionEnd).trim();
+  const content = selected || noteInput.value.trim();
+  if (!content) {
+    noteInput.focus();
+    return;
+  }
+
+  const todoText = content.split(/\r?\n/).find((line) => line.trim())?.trim() || content;
+  const output = createDemoSummary(todoText);
+  const record = saveRecord(todoText, output);
+  setMode("todo", { restoreLatest: false });
+  showRecord(record);
+  addMessage("ai", `已从笔记转成 TODO：\n${output}`);
+}
+
+function renderGlobalSearch() {
+  const query = globalSearchInput.value.trim().toLowerCase();
+  searchResults.innerHTML = "";
+  searchResults.classList.toggle("hidden", !query);
+  if (!query) return;
+
+  const results = collectSearchResults(query);
+  if (!results.length) {
+    searchResults.innerHTML = '<p class="empty-history">没有搜到相关记录。</p>';
+    return;
+  }
+
+  results.forEach((result) => {
+    const button = document.createElement("button");
+    button.className = "search-result-item";
+    button.type = "button";
+    button.innerHTML = `
+      <span>${result.type}</span>
+      <strong></strong>
+      <small>${result.meta}</small>
+    `;
+    button.querySelector("strong").textContent = result.title;
+    button.addEventListener("click", () => openSearchResult(result));
+    searchResults.append(button);
+  });
+}
+
+function collectSearchResults(query) {
+  const todoResults = state.history
+    .filter((record) => searchable(`${record.input}\n${record.output}`).includes(query))
+    .map((record) => {
+      const parsed = parseTodoRecord(record);
+      return {
+        type: "TODO",
+        title: parsed.event,
+        meta: `${parsed.date} · ${parsed.time}`,
+        mode: "todo",
+        id: record.id
+      };
+    });
+
+  const noteResults = state.notes
+    .filter((note) => searchable(`${note.category || ""}\n${note.content}`).includes(query))
+    .map((note) => ({
+      type: note.category || "笔记",
+      title: getNoteTitle(note.content),
+      meta: `${formatDate(note.updatedAt)} · ${formatClock(note.updatedAt)}`,
+      mode: "note",
+      id: note.id
+    }));
+
+  const momentResults = state.moments
+    .filter((moment) => searchable(`${moment.content}\n${moment.image}`).includes(query))
+    .map((moment) => ({
+      type: "朋友圈",
+      title: moment.content || "图片动态",
+      meta: `${formatDate(moment.createdAt)} · ${formatClock(moment.createdAt)}`,
+      mode: "moment",
+      id: moment.id
+    }));
+
+  return [...todoResults, ...noteResults, ...momentResults].slice(0, 12);
+}
+
+function openSearchResult(result) {
+  setMode(result.mode, { restoreLatest: false });
+  if (result.mode === "todo") {
+    const record = state.history.find((item) => item.id === result.id);
+    if (record) showRecord(record);
+  }
+  if (result.mode === "note") editNote(result.id);
+  if (result.mode === "moment") renderMoments();
+}
+
+function searchable(value) {
+  return String(value || "").toLowerCase();
+}
+
+function getTodoGroups() {
+  const groups = [
+    { key: "today", title: "今天", items: [] },
+    { key: "tomorrow", title: "明天", items: [] },
+    { key: "week", title: "本周", items: [] },
+    { key: "undated", title: "未定时间", items: [] },
+    { key: "completed", title: "已完成", items: [] }
+  ];
+  const map = Object.fromEntries(groups.map((group) => [group.key, group]));
+
+  getSortedTodos().forEach((record) => {
+    if (record.completed) {
+      map.completed.items.push(record);
+      return;
+    }
+    map[getTodoGroupKey(record)].items.push(record);
+  });
+
+  return groups;
+}
+
+function getTodoGroupKey(record) {
+  const time = getTodoSortValue(record);
+  if (time === Number.MAX_SAFE_INTEGER) return "undated";
+
+  const target = startOfDay(new Date(time));
+  const today = startOfDay(new Date());
+  const tomorrow = addDays(today, 1);
+  const weekEnd = addDays(today, 7);
+
+  if (target.getTime() === today.getTime()) return "today";
+  if (target.getTime() === tomorrow.getTime()) return "tomorrow";
+  if (target > tomorrow && target <= weekEnd) return "week";
+  return "undated";
+}
+
+function startOfDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
 function renderTodoSummary() {
   if (state.mode !== "todo") return;
   todoSummaryList.innerHTML = "";
@@ -726,35 +877,45 @@ function renderTodoSummary() {
     return;
   }
 
-  getSortedTodos().forEach((record) => {
-    const item = document.createElement("article");
-    item.className = "todo-summary-item";
-    item.classList.toggle("completed", Boolean(record.completed));
-    item.classList.toggle("active", record.id === state.activeHistoryId);
+  getTodoGroups().forEach((group) => {
+    if (!group.items.length) return;
 
-    const parsed = parseTodoRecord(record);
-    item.innerHTML = `
-      <button class="todo-complete" type="button"></button>
-      <div class="todo-summary-main">
-        <strong></strong>
-        <span>${parsed.date} · ${parsed.time}</span>
-      </div>
-      <div class="todo-actions">
-        <em data-action="edit">编辑</em>
-        <em data-action="delete">删除</em>
-      </div>
-    `;
+    const section = document.createElement("section");
+    section.className = "todo-group";
+    section.innerHTML = `<h3>${group.title}<span>${group.items.length}</span></h3>`;
 
-    item.querySelector(".todo-complete").textContent = record.completed ? "已完成" : "完成";
-    item.querySelector("strong").textContent = parsed.event;
-    item.querySelector(".todo-complete").addEventListener("click", () => toggleTodoComplete(record.id));
-    item.querySelector('[data-action="edit"]').addEventListener("click", () => editTodo(record.id));
-    item.querySelector('[data-action="delete"]').addEventListener("click", () => deleteTodo(record.id));
-    item.addEventListener("click", (event) => {
-      if (event.target.closest("button") || event.target.dataset.action) return;
-      showRecord(record);
+    group.items.forEach((record) => {
+      const item = document.createElement("article");
+      item.className = "todo-summary-item";
+      item.classList.toggle("completed", Boolean(record.completed));
+      item.classList.toggle("active", record.id === state.activeHistoryId);
+
+      const parsed = parseTodoRecord(record);
+      item.innerHTML = `
+        <button class="todo-complete" type="button"></button>
+        <div class="todo-summary-main">
+          <strong></strong>
+          <span>${parsed.date} · ${parsed.time}</span>
+        </div>
+        <div class="todo-actions">
+          <em data-action="edit">编辑</em>
+          <em data-action="delete">删除</em>
+        </div>
+      `;
+
+      item.querySelector(".todo-complete").textContent = record.completed ? "已完成" : "完成";
+      item.querySelector("strong").textContent = parsed.event;
+      item.querySelector(".todo-complete").addEventListener("click", () => toggleTodoComplete(record.id));
+      item.querySelector('[data-action="edit"]').addEventListener("click", () => editTodo(record.id));
+      item.querySelector('[data-action="delete"]').addEventListener("click", () => deleteTodo(record.id));
+      item.addEventListener("click", (event) => {
+        if (event.target.closest("button") || event.target.dataset.action) return;
+        showRecord(record);
+      });
+      section.append(item);
     });
-    todoSummaryList.append(item);
+
+    todoSummaryList.append(section);
   });
 }
 
@@ -1086,3 +1247,6 @@ function inferTimeText(text) {
   if (/今晚|晚上/.test(text)) return "晚上";
   return "未定";
 }
+
+
+
