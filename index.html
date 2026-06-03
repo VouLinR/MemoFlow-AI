@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MemoFlow AI</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="应用状态">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">
+            <img src="favicon.svg" alt="" />
+          </div>
+          <div>
+            <p class="eyebrow">MemoFlow AI</p>
+            <h1>记不住的全都写下来</h1>
+          </div>
+        </div>
+
+        <div class="top-actions">
+          <button class="profile-chip" id="profileButton" type="button" aria-label="修改个人信息">
+            <img id="profileAvatarPreview" alt="" />
+            <span id="profileNamePreview">未设置</span>
+          </button>
+          <button class="glass-button compact" id="settingsButton" type="button">
+            API 设置
+          </button>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <article class="chat-panel" aria-label="左侧工作区">
+          <div class="mode-strip" role="tablist" aria-label="功能切换">
+            <span class="mode-indicator" aria-hidden="true"></span>
+            <button class="mode-pill active" data-mode="todo" type="button">
+              TODOlist
+            </button>
+            <button class="mode-pill" data-mode="note" type="button">
+              随时笔记
+            </button>
+            <button class="mode-pill" data-mode="moment" type="button">
+              朋友圈
+            </button>
+          </div>
+
+          <section class="chat-view" id="chatView" aria-label="AI 对话">
+            <div class="messages" id="messages" aria-live="polite">
+              <div class="message ai">
+                <span class="avatar ai-avatar">AI</span>
+              <div class="bubble">
+                  想做什么、什么时候做，直接写给我。也可以说“删除开会”或“把开会改成 6.3 20:00 复盘”。
+              </div>
+              </div>
+            </div>
+
+            <form class="composer" id="chatForm">
+              <textarea
+                id="userInput"
+                rows="4"
+                placeholder="推荐格式：日期 时间 事件。也可以输入：删除开会；把开会改成 6.3 20:00 复盘..."
+                required
+              ></textarea>
+              <div class="composer-actions">
+              <button class="glass-button ghost" id="clearButton" type="button">
+                  清空输入
+                </button>
+                <button class="glass-button primary" id="submitButton" type="submit">
+                  开始整理
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section class="note-view hidden" id="noteView" aria-label="随时笔记">
+            <div class="note-prompt">
+              <p class="eyebrow">Quick Note</p>
+              <h2>想到什么，先写下来。</h2>
+              <span id="noteEditStatus">新笔记</span>
+            </div>
+            <textarea
+              id="noteInput"
+              class="note-input"
+              placeholder="这里不会调用 AI。直接写原始想法、灵感、备忘、流水账。点击“完成笔记”后，它会保存到右侧列表，之后还能点开继续编辑。"
+            ></textarea>
+            <div class="note-tags" id="noteTagList" aria-label="笔记分类">
+              <button class="tag-chip" data-tag="学习笔记" type="button">
+                学习笔记
+                <span aria-hidden="true">×</span>
+              </button>
+              <button class="tag-chip" data-tag="随笔文摘" type="button">
+                随笔文摘
+                <span aria-hidden="true">×</span>
+              </button>
+              <button class="tag-chip" data-tag="冲浪心得" type="button">
+                冲浪心得
+                <span aria-hidden="true">×</span>
+              </button>
+              <button class="tag-chip" data-tag="灵感草稿" type="button">
+                灵感草稿
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <div class="composer-actions">
+              <button class="glass-button ghost" id="newNoteButton" type="button">
+                新建笔记
+              </button>
+              <button class="glass-button primary" id="saveNoteButton" type="button">
+                完成笔记
+              </button>
+            </div>
+          </section>
+
+          <section class="moment-feed-view hidden" id="momentFeedView" aria-label="朋友圈动态">
+            <div class="note-prompt">
+              <p class="eyebrow">Moments</p>
+              <h2>动态</h2>
+              <span>最新内容在上方</span>
+            </div>
+            <div class="moment-list main-feed" id="momentFeedList"></div>
+          </section>
+        </article>
+
+        <aside class="result-panel" aria-label="右侧结果">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow" id="resultEyebrow">Structured Output</p>
+              <h2 id="resultTitle">TODOlist</h2>
+            </div>
+            <button class="glass-button compact" id="copyButton" type="button">
+              复制
+            </button>
+          </div>
+
+          <div class="result-card">
+            <pre id="resultOutput">等待你的输入。</pre>
+            <div class="todo-summary-list hidden" id="todoSummaryList"></div>
+            <div class="note-list hidden" id="noteList"></div>
+            <section class="moment-composer hidden" id="momentComposer" aria-label="发布朋友圈">
+              <p class="eyebrow">Post</p>
+              <h3>发一条动态</h3>
+              <textarea
+                id="momentInput"
+                placeholder="记录今天的状态、照片说明、心情或小片段。"
+              ></textarea>
+              <input id="momentImageInput" type="url" placeholder="可选：粘贴一张图片链接" />
+              <div class="composer-actions">
+                <button class="glass-button ghost" id="clearMomentButton" type="button">
+                  清空
+                </button>
+                <button class="glass-button primary" id="publishMomentButton" type="button">
+                  发布
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <div class="quick-stats">
+            <div>
+              <span id="statItems">0</span>
+              <small id="statItemsLabel">条结果</small>
+            </div>
+            <div>
+              <span id="statMode">Todo</span>
+              <small>当前模式</small>
+            </div>
+          </div>
+
+          <section class="history-panel" id="historyPanel" aria-label="历史记录">
+            <div class="history-heading">
+              <strong>历史记录</strong>
+              <button class="text-button" id="clearHistoryButton" type="button">
+                清空列表
+              </button>
+            </div>
+            <div class="history-list" id="historyList">
+              <p class="empty-history">还没有记录。</p>
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <dialog class="settings-modal" id="profileModal">
+      <form method="dialog" class="settings-card">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">User Profile</p>
+            <h2>个人信息</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="关闭" type="submit">
+            ×
+          </button>
+        </div>
+
+        <div class="avatar-editor">
+          <img id="profileModalAvatar" alt="" />
+          <div>
+            <label class="file-label">
+              更换头像
+              <input id="avatarFileInput" type="file" accept="image/*" />
+            </label>
+            <input id="avatarUrlInput" type="url" placeholder="或粘贴头像图片链接" />
+          </div>
+        </div>
+
+        <label>
+          昵称
+          <input id="profileNameInput" type="text" placeholder="你的昵称" />
+        </label>
+
+        <label>
+          职位 / 身份
+          <input id="profileRoleInput" type="text" placeholder="例如：产品经理、学生、自由职业者" />
+        </label>
+
+        <label>
+          邮箱
+          <input id="profileEmailInput" type="email" placeholder="name@example.com" />
+        </label>
+
+        <label>
+          备注
+          <textarea id="profileNoteInput" rows="3" placeholder="常用偏好、记账习惯、工作背景等"></textarea>
+        </label>
+
+        <div class="composer-actions">
+          <button class="glass-button ghost" id="showProfileButton" type="button">
+            查询信息
+          </button>
+          <button class="glass-button primary" id="saveProfileButton" value="default" type="submit">
+            保存资料
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="settings-modal" id="settingsModal">
+      <form method="dialog" class="settings-card">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">API Connection</p>
+            <h2>连接你的 AI</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="关闭" type="submit">
+            ×
+          </button>
+        </div>
+
+        <label>
+          服务商
+          <select id="providerSelect">
+            <option value="proxy">本地安全代理</option>
+            <option value="openai">OpenAI / ChatGPT</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="custom">自定义兼容接口</option>
+          </select>
+        </label>
+
+        <label>
+          API Key
+          <input id="apiKeyInput" type="password" placeholder="sk-..." />
+        </label>
+
+        <label>
+          模型
+          <input id="modelInput" type="text" placeholder="gpt-4.1-mini 或 deepseek-chat" />
+        </label>
+
+        <label>
+          接口地址
+          <input id="endpointInput" type="url" placeholder="https://api.openai.com/v1/chat/completions" />
+        </label>
+
+        <p class="hint">
+          推荐使用本地安全代理或后端保存密钥。浏览器直连模式只适合本地调试。
+        </p>
+
+        <div class="composer-actions">
+          <button class="glass-button ghost" id="demoButton" type="button">
+            使用演示整理
+          </button>
+          <button class="glass-button primary" id="saveSettingsButton" value="default" type="submit">
+            保存设置
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
