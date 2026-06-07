@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -53,7 +53,10 @@
         <article class="chat-panel" aria-label="左侧工作区">
           <div class="mode-strip" role="tablist" aria-label="功能切换">
             <span class="mode-indicator" aria-hidden="true"></span>
-            <button class="mode-pill active" data-mode="todo" type="button">
+            <button class="mode-pill active" data-mode="dashboard" type="button">
+              Dashboard
+            </button>
+            <button class="mode-pill" data-mode="todo" type="button">
               TODOlist
             </button>
             <button class="mode-pill" data-mode="note" type="button">
@@ -62,9 +65,14 @@
             <button class="mode-pill" data-mode="moment" type="button">
               朋友圈
             </button>
+            <button class="mode-pill" data-mode="experiment" type="button">
+              实验记录
+            </button>
           </div>
 
-          <section class="chat-view" id="chatView" aria-label="AI 对话">
+          <section class="dashboard-view" id="dashboardView" aria-label="首页仪表盘"></section>
+
+          <section class="chat-view hidden" id="chatView" aria-label="AI 对话">
             <div class="messages" id="messages" aria-live="polite">
               <div class="message ai">
                 <span class="avatar ai-avatar">AI</span>
@@ -142,6 +150,35 @@
             </div>
             <div class="moment-list main-feed" id="momentFeedList"></div>
           </section>
+
+          <section class="experiment-view hidden" id="experimentView" aria-label="实验记录">
+            <div class="note-prompt">
+              <p class="eyebrow">Lab Log</p>
+              <h2>边做实验，边留下证据。</h2>
+              <span id="experimentStatus">新实验</span>
+            </div>
+            <input id="experimentTitleInput" class="experiment-title-input" type="text" placeholder="实验标题，例如：算法实验三：图像分割" />
+            <textarea id="experimentStepInput" class="experiment-step-input" placeholder="写下当前步骤、参数、观察到的现象。也可以直接粘贴截图，或上传截图文件。"></textarea>
+            <div class="experiment-shot-row">
+              <label class="file-pick">
+                上传截图
+                <input id="experimentImageInput" type="file" accept="image/*" />
+              </label>
+              <input id="experimentImageUrlInput" type="url" placeholder="可选：粘贴截图链接" />
+            </div>
+            <div class="experiment-image-preview hidden" id="experimentImagePreview"></div>
+            <div class="composer-actions">
+              <button class="glass-button ghost" id="newExperimentButton" type="button">
+                新建实验
+              </button>
+              <button class="glass-button ghost" id="exportExperimentButton" type="button">
+                导出实验
+              </button>
+              <button class="glass-button primary" id="addExperimentStepButton" type="button">
+                添加步骤
+              </button>
+            </div>
+          </section>
         </article>
 
         <aside class="result-panel" aria-label="右侧结果">
@@ -157,8 +194,17 @@
 
           <div class="result-card">
             <pre id="resultOutput">等待你的输入。</pre>
+            <section class="dashboard-panel hidden" id="dashboardPanel">
+              <p class="dashboard-ai" id="dashboardAiSummary">正在整理今天的状态。</p>
+              <div class="dashboard-actions">
+                <button class="glass-button ghost" id="generateTodayButton" type="button">生成今日回顾</button>
+                <button class="glass-button primary" id="generateWeekButton" type="button">生成本周总结</button>
+              </div>
+              <pre id="dashboardReport">选择一个回顾按钮，生成本地日报或周报。</pre>
+            </section>
             <div class="todo-summary-list hidden" id="todoSummaryList"></div>
             <div class="note-list hidden" id="noteList"></div>
+            <div class="experiment-list hidden" id="experimentList"></div>
             <section class="moment-composer hidden" id="momentComposer" aria-label="发布朋友圈">
               <p class="eyebrow">Post</p>
               <h3>发一条动态</h3>
@@ -313,4 +359,3 @@
     <script src="app.js"></script>
   </body>
 </html>
-
